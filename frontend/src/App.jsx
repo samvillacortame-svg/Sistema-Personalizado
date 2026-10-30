@@ -217,9 +217,11 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark small-mark">D</span><span>Dermogestión<small>Sistema comercial</small></span></div>
         <p className="nav-label">ESPACIO DE TRABAJO</p>
-        <button className={`nav-item ${page === 'clientes' ? 'selected' : ''}`} onClick={() => setPage('clientes')}><span>01</span>Clientes</button>
-        <button className={`nav-item ${page === 'pedidos' ? 'selected' : ''}`} onClick={() => setPage('pedidos')}><span>02</span>Pedidos</button>
-        <button className={`nav-item ${page === 'inventario' ? 'selected' : ''}`} onClick={() => setPage('inventario')}><span>03</span>Inventario</button>
+        {(role === 'VENTAS' || role === 'ADMIN') && <>
+          <button className={`nav-item ${page === 'clientes' ? 'selected' : ''}`} onClick={() => setPage('clientes')}><span>01</span>Clientes</button>
+          <button className={`nav-item ${page === 'pedidos' ? 'selected' : ''}`} onClick={() => setPage('pedidos')}><span>02</span>Pedidos</button>
+        </>}
+        <button className={`nav-item ${page === 'inventario' ? 'selected' : ''}`} onClick={() => setPage('inventario')}><span>03</span>{role === 'VENTAS' ? 'Productos' : 'Inventario'}</button>
         <button className={`nav-item ${page === 'reportes' ? 'selected' : ''}`} onClick={() => setPage('reportes')}><span>04</span>Reportes</button>
         <div className="sidebar-note"><b>Sistema comercial</b><p>Clientes, pedidos y existencias conectados en un solo flujo.</p></div>
       </aside>
@@ -284,7 +286,7 @@ export default function App() {
       </div>}
       </> : <section className="workspace feature-workspace">
         <div className="feature-role">Sesión: {role === 'ADMIN' ? 'Administrador' : role === 'ALMACEN' ? 'Almacén' : 'Ventas'}</div>
-        {page === 'pedidos' ? <OrdersPage auth={auth} /> : page === 'inventario' ? <InventoryPage auth={auth} /> : <ReportsPage auth={auth} />}
+        {page === 'pedidos' ? <OrdersPage auth={auth} onSignOut={signOut} /> : page === 'inventario' ? <InventoryPage auth={auth} role={role} onSignOut={signOut} /> : <ReportsPage auth={auth} />}
         <button className="quiet-button feature-signout" onClick={signOut}>Cerrar sesión</button>
       </section>}
     </main>

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 
 const money = (value) => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value || 0);
+const dateTime = (value) => new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`).toLocaleString('es-PE');
 const stateLabel = { CONFIRMADO: 'Confirmado', PREPARACION: 'En preparación', DESPACHADO: 'Despachado', CANCELADO: 'Cancelado', DEVUELTO: 'Devuelto' };
 async function message(response) {
   try { const body = await response.json(); return body.detail || body.message || 'Ocurrió un error.'; }
   catch { return response.status === 403 ? 'Esta cuenta no tiene el rol de almacén. Cierra sesión e ingresa como almacen_demo.' : 'Ocurrió un error.'; }
 }
 
-export default function InventoryPage({ auth }) {
+export default function InventoryPage({ auth, role, onSignOut }) {
+  const canManageInventory = role === 'ALMACEN' || role === 'ADMIN';
   const [products, setProducts] = useState([]);
   const [moves, setMoves] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -22,18 +24,24 @@ export default function InventoryPage({ auth }) {
   const refresh = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const paths = ['/api/almacen/productos?incluirInactivos=true', '/api/almacen/movimientos', '/api/almacen/pedidos'];
+      const paths = canManageInventory
+        ? ['/api/almacen/productos?incluirInactivos=true', '/api/almacen/movimientos', '/api/almacen/pedidos']
+        : ['/api/ventas/productos'];
       const responses = await Promise.all(paths.map((path) => fetch(path, { headers: { Authorization: auth } })));
       const failed = responses.find((response) => !response.ok);
       if (failed) throw Object.assign(new Error(await message(failed)), { status: failed.status });
-      const [productsData, movesData, ordersData] = await Promise.all(responses.map((response) => response.json()));
+      const data = await Promise.all(responses.map((response) => response.json()));
+      const [productsData, movesData = [], ordersData = []] = data;
       setProducts(productsData); setMoves(movesData); setOrders(ordersData);
-      if (!movementForm.productoId && productsData.length) setMovementForm((current) => ({ ...current, productoId: String(productsData[0].id) }));
+      const firstActiveProduct = productsData.find((product) => product.activo);
+      if (canManageInventory && !movementForm.productoId && firstActiveProduct) {
+        setMovementForm((current) => ({ ...current, productoId: String(firstActiveProduct.id) }));
+      }
     } catch (exception) {
       if (exception.status === 403) setError('Para administrar el inventario, cierra sesión e ingresa con almacen_demo / almacen_local_demo.');
       else setError(exception.message || 'No se pudo conectar con el almacén.');
     } finally { setLoading(false); }
-  }, [auth, movementForm.productoId]);
+  }, [auth, canManageInventory, movementForm.productoId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -76,21 +84,22 @@ export default function InventoryPage({ auth }) {
   const pendingOrders = orders.filter((order) => ['CONFIRMADO', 'PREPARACION'].includes(order.estado));
 
   return <section className="feature-page">
-    <header className="feature-heading"><div><p className="eyebrow">OPERACIONES · SPRINT 3</p><h1>Inventario y despacho</h1><p className="muted">Controla existencias, movimientos y preparación de pedidos.</p></div><button className="primary-button" onClick={() => setProductOpen(true)}>＋ Nuevo producto</button></header>
+    <header className="feature-heading"><div><p className="eyebrow">{canManageInventory ? 'OPERACIONES · SPRINT 3' : 'VENTAS · CATÁLOGO'}</p><h1>{canManageInventory ? 'Inventario y despacho' : 'Productos disponibles'}</h1><p className="muted">{canManageInventory ? 'Controla existencias, movimientos y preparación de pedidos.' : 'Consulta los productos activos y el stock disponible para registrar pedidos.'}</p></div>{canManageInventory && <button className="primary-button" onClick={() => setProductOpen(true)}>＋ Nuevo producto</button>}</header>
     {notice && <p className="alert success">{notice}</p>}{error && <p className="alert error">{error}</p>}
     {error.includes('almacen_demo') ? <article className="role-hint"><b>Acceso de almacén requerido</b><p>Usa Cerrar sesión e inicia con <code>almacen_demo</code> y <code>almacen_local_demo</code>. Las ventas y almacén tienen permisos separados.</p></article> : <>
       <div className="summary-grid order-summary">
         <article className="summary-card"><span>Productos en catálogo</span><strong>{products.filter((p) => p.activo).length}</strong><small>SKU activos</small></article>
         <article className="summary-card"><span>Stock bajo</span><strong className={products.some((p) => p.stockBajo && p.activo) ? 'warning-number' : ''}>{products.filter((p) => p.stockBajo && p.activo).length}</strong><small>Igual o menor al mínimo configurado</small></article>
-        <article className="summary-card"><span>Pedidos por preparar</span><strong>{pendingOrders.length}</strong><small>Confirmados o en preparación</small></article>
+        {canManageInventory && <article className="summary-card"><span>Pedidos por preparar</span><strong>{pendingOrders.length}</strong><small>Confirmados o en preparación</small></article>}
       </div>
 
-      <div className="inventory-grid">
-        <section className="client-panel inventory-products"><div className="panel-heading"><div><p className="eyebrow">CATÁLOGO</p><h2>Productos y existencias</h2></div></div>
-          <div className="table-wrap"><table><thead><tr><th>PRODUCTO</th><th>PRECIO</th><th>FÍSICO</th><th>RESERVADO</th><th>DISPONIBLE</th></tr></thead><tbody>
-            {products.map((product) => <tr key={product.id}><td><div className="product-cell"><b>{product.nombre}</b><small>{product.sku}{!product.activo ? ' · Inactivo' : ''}</small></div></td><td>{money(product.precio)}</td><td>{product.stockFisico}</td><td>{product.stockReservado}</td><td><span className={`stock-value ${product.stockBajo ? 'low-stock' : ''}`}>{product.stockDisponible}</span></td></tr>)}
-          </tbody></table>{!loading && products.length === 0 && <div className="empty-state"><b>Aún no hay productos</b><span>Crea un producto e ingresa su stock inicial.</span></div>}{loading && <div className="empty-state">Cargando inventario…</div>}</div>
+      <div className="inventory-grid" style={canManageInventory ? undefined : { gridTemplateColumns: '1fr' }}>
+        <section className="client-panel inventory-products"><div className="panel-heading"><div><p className="eyebrow">CATÁLOGO</p><h2>{canManageInventory ? 'Productos y existencias' : 'Catálogo para pedidos'}</h2></div></div>
+          <div className="table-wrap"><table><thead><tr><th>PRODUCTO</th><th>PRECIO</th>{canManageInventory && <><th>FÍSICO</th><th>RESERVADO</th></>}<th>DISPONIBLE</th></tr></thead><tbody>
+            {products.map((product) => <tr key={product.id}><td><div className="product-cell"><b>{product.nombre}</b><small>{product.sku}{!product.activo ? ' · Inactivo' : ''}</small></div></td><td>{money(product.precio)}</td>{canManageInventory && <><td>{product.stockFisico}</td><td>{product.stockReservado}</td></>}<td><span className={`stock-value ${product.stockBajo ? 'low-stock' : ''}`}>{product.stockDisponible}</span></td></tr>)}
+          </tbody></table>{!loading && products.length === 0 && <div className="empty-state"><b>Aún no hay productos</b><span>{canManageInventory ? 'Crea un producto e ingresa su stock inicial.' : 'Almacén debe registrar productos activos para que ventas pueda consultarlos y crear pedidos.'}</span>{!canManageInventory && onSignOut && <button type="button" className="text-action" onClick={onSignOut}>Cambiar a cuenta de almacén</button>}</div>}{loading && <div className="empty-state">Cargando inventario…</div>}</div>
         </section>
+        {canManageInventory && <>
         <section className="client-panel movement-panel"><p className="eyebrow">MOVIMIENTO MANUAL</p><h2>Actualizar stock</h2><p className="muted">Las salidas de pedidos se registran automáticamente al despachar.</p>
           <form className="movement-form" onSubmit={addMovement}>
             <label>Producto<select required value={movementForm.productoId} onChange={(event) => setMovementForm({ ...movementForm, productoId: event.target.value })}><option value="">Selecciona</option>{products.filter((p) => p.activo).map((p) => <option value={p.id} key={p.id}>{p.sku} · {p.nombre}</option>)}</select></label>
@@ -100,13 +109,16 @@ export default function InventoryPage({ auth }) {
             <button className="primary-button" disabled={!products.some((p) => p.activo)}>Registrar movimiento</button>
           </form>
         </section>
+        </>}
       </div>
 
+      {canManageInventory && <>
       <section className="client-panel fulfillment-panel"><div className="panel-heading"><div><p className="eyebrow">PREPARACIÓN</p><h2>Pedidos de ventas</h2><p className="muted">El stock reservado queda protegido hasta despachar o cancelar el pedido.</p></div></div>
         <div className="fulfillment-list">{pendingOrders.map((order) => <article className="fulfillment-row" key={order.id}><div><b>Pedido #{order.id} · {order.clienteNombre}</b><small>{order.items.map((item) => `${item.cantidad} × ${item.productoNombre}`).join(' · ')}</small></div><span className={`badge order-status status-${order.estado.toLowerCase()}`}>{stateLabel[order.estado]}</span><div className="actions">{order.estado === 'CONFIRMADO' && <button onClick={() => orderAction(order, 'preparar', 'En preparación')}>Iniciar preparación</button>}{order.estado === 'PREPARACION' && <button onClick={() => orderAction(order, 'despachar', 'Despachado')}>Despachar</button>}</div></article>)}{!pendingOrders.length && <div className="empty-state compact-empty">No hay pedidos pendientes de preparación.</div>}</div>
       </section>
 
-      <section className="client-panel movement-history"><div className="panel-heading"><div><p className="eyebrow">TRAZABILIDAD</p><h2>Movimientos recientes</h2></div></div><div className="table-wrap"><table><thead><tr><th>FECHA</th><th>PRODUCTO</th><th>TIPO</th><th>CANTIDAD</th><th>REFERENCIA</th></tr></thead><tbody>{moves.map((move) => <tr key={move.id}><td>{move.creadoEn ? new Date(move.creadoEn).toLocaleString('es-PE') : '—'}</td><td>{move.productoNombre}</td><td>{move.tipo}</td><td>{move.cantidad > 0 ? '+' : ''}{move.cantidad}</td><td>{move.pedidoId ? `Pedido #${move.pedidoId}` : move.motivo || '—'}</td></tr>)}</tbody></table>{!moves.length && !loading && <div className="empty-state">Los movimientos aparecerán aquí.</div>}</div></section>
+      <section className="client-panel movement-history"><div className="panel-heading"><div><p className="eyebrow">TRAZABILIDAD</p><h2>Movimientos recientes</h2></div></div><div className="table-wrap"><table><thead><tr><th>FECHA</th><th>PRODUCTO</th><th>TIPO</th><th>CANTIDAD</th><th>REFERENCIA</th></tr></thead><tbody>{moves.map((move) => <tr key={move.id}><td>{move.creadoEn ? dateTime(move.creadoEn) : '—'}</td><td>{move.productoNombre}</td><td>{move.tipo}</td><td>{move.cantidad > 0 ? '+' : ''}{move.cantidad}</td><td>{move.pedidoId ? `Pedido #${move.pedidoId}` : move.motivo || '—'}</td></tr>)}</tbody></table>{!moves.length && !loading && <div className="empty-state">Los movimientos aparecerán aquí.</div>}</div></section>
+      </>}
     </>}
 
     {productOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setProductOpen(false); }}><section className="form-modal" role="dialog" aria-modal="true" aria-labelledby="product-title"><div className="modal-heading"><div><p className="eyebrow">CATÁLOGO</p><h2 id="product-title">Nuevo producto</h2></div><button className="close-button" onClick={() => setProductOpen(false)} aria-label="Cerrar">×</button></div>

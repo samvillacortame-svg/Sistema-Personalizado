@@ -17,19 +17,34 @@ public class ReporteRepository {
 
     public Metricas consultarMetricas(LocalDateTime inicio, LocalDateTime fin) {
         String sql = """
-                SELECT COUNT(DISTINCT p.id) AS pedidos,
-                       COUNT(DISTINCT CASE WHEN p.estado = 'DESPACHADO' THEN p.id END) AS despachados,
-                       COUNT(DISTINCT CASE WHEN p.estado IN ('CONFIRMADO','PREPARACION') THEN p.id END) AS pendientes,
-                       COUNT(DISTINCT CASE WHEN p.estado = 'CANCELADO' THEN p.id END) AS cancelados,
+                SELECT COUNT(DISTINCT CASE WHEN p.creado_en >= ? AND p.creado_en < ? THEN p.id END) AS pedidos,
+                       COUNT(DISTINCT CASE WHEN p.estado = 'DESPACHADO'
+                               AND COALESCE(p.despachado_en, p.creado_en) >= ?
+                               AND COALESCE(p.despachado_en, p.creado_en) < ? THEN p.id END) AS despachados,
+                       COUNT(DISTINCT CASE WHEN p.estado IN ('CONFIRMADO','PREPARACION')
+                               AND p.creado_en >= ? AND p.creado_en < ? THEN p.id END) AS pendientes,
+                       COUNT(DISTINCT CASE WHEN p.estado = 'CANCELADO'
+                               AND p.creado_en >= ? AND p.creado_en < ? THEN p.id END) AS cancelados,
                        COALESCE(SUM(CASE WHEN p.estado = 'DESPACHADO'
+                           AND COALESCE(p.despachado_en, p.creado_en) >= ?
+                           AND COALESCE(p.despachado_en, p.creado_en) < ?
                            THEN d.cantidad * d.precio_unitario ELSE 0 END), 0) AS ventas
                 FROM pedidos p
                 LEFT JOIN pedido_detalles d ON d.pedido_id = p.id
-                WHERE p.creado_en >= ? AND p.creado_en < ?
+                WHERE (p.creado_en >= ? AND p.creado_en < ?)
+                   OR (p.estado = 'DESPACHADO'
+                       AND COALESCE(p.despachado_en, p.creado_en) >= ?
+                       AND COALESCE(p.despachado_en, p.creado_en) < ?)
                 """;
         return jdbc.queryForObject(sql, (rs, row) -> new Metricas(
                 rs.getLong("pedidos"), rs.getLong("despachados"), rs.getLong("pendientes"),
                 rs.getLong("cancelados"), nvl(rs.getBigDecimal("ventas"))),
+                Timestamp.valueOf(inicio), Timestamp.valueOf(fin),
+                Timestamp.valueOf(inicio), Timestamp.valueOf(fin),
+                Timestamp.valueOf(inicio), Timestamp.valueOf(fin),
+                Timestamp.valueOf(inicio), Timestamp.valueOf(fin),
+                Timestamp.valueOf(inicio), Timestamp.valueOf(fin),
+                Timestamp.valueOf(inicio), Timestamp.valueOf(fin),
                 Timestamp.valueOf(inicio), Timestamp.valueOf(fin));
     }
 
@@ -39,7 +54,9 @@ public class ReporteRepository {
                        COALESCE(SUM(d.cantidad * d.precio_unitario), 0) AS ventas
                 FROM pedidos p
                 LEFT JOIN pedido_detalles d ON d.pedido_id = p.id
-                WHERE p.estado = 'DESPACHADO' AND p.creado_en >= ? AND p.creado_en < ?
+                WHERE p.estado = 'DESPACHADO'
+                  AND COALESCE(p.despachado_en, p.creado_en) >= ?
+                  AND COALESCE(p.despachado_en, p.creado_en) < ?
                 GROUP BY p.canal ORDER BY ventas DESC
                 """;
         return jdbc.query(sql, (rs, row) -> new VentaCanal(
@@ -49,12 +66,16 @@ public class ReporteRepository {
 
     public List<VentaDiaria> ventasDiarias(LocalDateTime inicio, LocalDateTime fin) {
         String sql = """
-                SELECT DATE(p.creado_en) AS fecha, COUNT(DISTINCT p.id) AS pedidos,
+                SELECT DATE(DATE_SUB(COALESCE(p.despachado_en, p.creado_en), INTERVAL 5 HOUR)) AS fecha,
+                       COUNT(DISTINCT p.id) AS pedidos,
                        COALESCE(SUM(d.cantidad * d.precio_unitario), 0) AS ventas
                 FROM pedidos p
                 LEFT JOIN pedido_detalles d ON d.pedido_id = p.id
-                WHERE p.estado = 'DESPACHADO' AND p.creado_en >= ? AND p.creado_en < ?
-                GROUP BY DATE(p.creado_en) ORDER BY fecha ASC
+                WHERE p.estado = 'DESPACHADO'
+                  AND COALESCE(p.despachado_en, p.creado_en) >= ?
+                  AND COALESCE(p.despachado_en, p.creado_en) < ?
+                GROUP BY DATE(DATE_SUB(COALESCE(p.despachado_en, p.creado_en), INTERVAL 5 HOUR))
+                ORDER BY fecha ASC
                 """;
         return jdbc.query(sql, (rs, row) -> new VentaDiaria(
                 rs.getDate("fecha").toLocalDate(), rs.getLong("pedidos"), nvl(rs.getBigDecimal("ventas"))),
@@ -68,7 +89,9 @@ public class ReporteRepository {
                 FROM pedidos p
                 JOIN pedido_detalles d ON d.pedido_id = p.id
                 JOIN productos pr ON pr.id = d.producto_id
-                WHERE p.estado = 'DESPACHADO' AND p.creado_en >= ? AND p.creado_en < ?
+                WHERE p.estado = 'DESPACHADO'
+                  AND COALESCE(p.despachado_en, p.creado_en) >= ?
+                  AND COALESCE(p.despachado_en, p.creado_en) < ?
                 GROUP BY pr.id, pr.sku, pr.nombre
                 ORDER BY unidades DESC, ventas DESC LIMIT 5
                 """;

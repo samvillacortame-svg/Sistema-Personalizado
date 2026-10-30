@@ -1,4 +1,5 @@
 $envFile = Join-Path $PSScriptRoot ".env"
+$env:JAVA_TOOL_OPTIONS = ($env:JAVA_TOOL_OPTIONS + " -Duser.timezone=UTC").Trim()
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^\s*([^#=]+)=(.*)$') {

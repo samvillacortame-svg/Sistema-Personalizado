@@ -35,12 +35,12 @@ export default function ReportsPage({ auth }) {
 
   return <section className="feature-page reports-page">
     <header className="feature-heading"><div><p className="eyebrow">ANALÍTICA · SPRINT 4</p><h1>Reportes de gestión</h1><p className="muted">Ventas despachadas, canales, productos y alertas de inventario.</p></div></header>
-    <section className="client-panel report-filter"><div className="report-filter-fields"><label>Desde<input type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} /></label><label>Hasta<input type="date" value={to} min={from} onChange={(event) => setTo(event.target.value)} /></label><button className="primary-button" onClick={loadReport} disabled={loading}>{loading ? 'Actualizando…' : 'Actualizar reporte'}</button></div><small>Las ventas se calculan con pedidos despachados dentro del periodo seleccionado.</small></section>
+    <section className="client-panel report-filter"><div className="report-filter-fields"><label>Desde<input type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} /></label><label>Hasta<input type="date" value={to} min={from} onChange={(event) => setTo(event.target.value)} /></label><button className="primary-button" onClick={loadReport} disabled={loading}>{loading ? 'Actualizando…' : 'Actualizar reporte'}</button></div><small>Las ventas usan la fecha de despacho; los pedidos pendientes y cancelados se cuentan por su fecha de registro.</small></section>
     {error && <p className="alert error" role="alert">{error}</p>}
     {report && <>
       <div className="summary-grid report-kpis">
         <article className="summary-card"><span>Ventas netas</span><strong>{money(report.ventas)}</strong><small>Pedidos despachados en el periodo</small></article>
-        <article className="summary-card"><span>Pedidos registrados</span><strong>{report.pedidos}</strong><small>{report.despachados} despachados · {report.pendientes} pendientes</small></article>
+        <article className="summary-card"><span>Pedidos registrados</span><strong>{report.pedidos}</strong><small>{report.despachados} despachados en el periodo · {report.pendientes} pendientes registrados</small></article>
         <article className="summary-card"><span>Ticket promedio</span><strong>{money(report.ticketPromedio)}</strong><small>Por pedido despachado</small></article>
         <article className="summary-card"><span>Alertas de stock</span><strong className={report.productosConStockBajo.length ? 'warning-number' : ''}>{report.productosConStockBajo.length}</strong><small>Productos en o bajo el mínimo</small></article>
       </div>

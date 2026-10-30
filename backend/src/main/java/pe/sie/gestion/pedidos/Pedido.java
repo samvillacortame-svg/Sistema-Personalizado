@@ -37,6 +37,8 @@ public class Pedido {
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime creadoEn;
+    @Column(name = "despachado_en")
+    private LocalDateTime despachadoEn;
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PedidoDetalle> detalles = new ArrayList<>();
 
@@ -54,10 +56,15 @@ public class Pedido {
     }
 
     public void cambiarEstado(EstadoPedido estado) { this.estado = estado; }
+    public void marcarDespachado(LocalDateTime fecha) {
+        this.estado = EstadoPedido.DESPACHADO;
+        this.despachadoEn = fecha;
+    }
     public Long getId() { return id; }
     public Cliente getCliente() { return cliente; }
     public CanalPedido getCanal() { return canal; }
     public EstadoPedido getEstado() { return estado; }
     public LocalDateTime getCreadoEn() { return creadoEn; }
+    public LocalDateTime getDespachadoEn() { return despachadoEn; }
     public List<PedidoDetalle> getDetalles() { return detalles; }
 }

@@ -1,5 +1,7 @@
 package pe.sie.gestion.pedidos;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +9,7 @@ import java.util.TreeMap;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -39,6 +42,7 @@ public class PedidoService {
         return pedidos.findAllByOrderByCreadoEnDesc().stream().map(PedidoResponse::desde).toList();
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public PedidoResponse crear(PedidoRequest request) {
         Cliente cliente = clientes.findById(request.clienteId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No se encontró el cliente"));
@@ -91,7 +95,7 @@ public class PedidoService {
             movimientos.save(new MovimientoInventario(detalle.getProducto(), pedido, TipoMovimiento.SALIDA,
                     detalle.getCantidad(), "Despacho del pedido #" + pedido.getId()));
         }
-        pedido.cambiarEstado(EstadoPedido.DESPACHADO);
+        pedido.marcarDespachado(LocalDateTime.now(ZoneOffset.UTC));
         return PedidoResponse.desde(pedido);
     }
 
@@ -107,7 +111,7 @@ public class PedidoService {
     }
 
     private Pedido obtener(Long id) {
-        return pedidos.findById(id)
+        return pedidos.lockById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No se encontró el pedido"));
     }
 

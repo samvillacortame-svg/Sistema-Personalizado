@@ -23,7 +23,7 @@ En el instalador de Windows, elige **Per-user installation** y deja **WSL 2** se
 
 MySQL también queda disponible para Workbench en `127.0.0.1:3308`, base `gestion_comercial`, usando las credenciales de `.env`. La base de datos se guarda en un volumen Docker local. Ese volumen no se comparte mediante Git; cada PC tendrá su propia copia de los datos.
 
-El archivo `database/schema.sql` se carga automáticamente la primera vez que se crea el volumen. Si posteriormente cambias el esquema, aplica la migración o importa el SQL manualmente en Workbench. Borrar el volumen también elimina los datos guardados.
+El archivo `database/schema.sql` crea el esquema inicial la primera vez que se crea el volumen. El API aplica automáticamente las migraciones pendientes desde `backend/src/main/resources/db/migration`, tanto en bases nuevas como en volúmenes existentes. No borres el volumen para actualizar el esquema: los datos se conservan. Borrar el volumen sí elimina toda la base local.
 
 ## Ejecutar sin contenedores
 1. En MySQL Workbench, abre y ejecuta `database/schema.sql` para crear la base y las tablas iniciales.

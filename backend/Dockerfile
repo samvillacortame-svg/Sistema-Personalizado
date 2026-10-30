@@ -22,4 +22,4 @@ COPY --from=build --chown=app:app /workspace/target/gestion-comercial-api-0.1.0.
 USER app
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=UTC", "-jar", "/app/app.jar"]
