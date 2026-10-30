@@ -1,0 +1,9 @@
+node_modules/
+dist/
+target/
+hsperfdata*/
+*.log
+.env
+.env.*
+!.env.example
+build_scrum.mjs
