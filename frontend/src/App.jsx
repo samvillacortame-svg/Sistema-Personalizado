@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import OrdersPage from './OrdersPage.jsx';
+import InventoryPage from './InventoryPage.jsx';
 
 const EMPTY_FORM = { nombre: '', documento: '', telefono: '', correo: '' };
 const AUTH_KEY = 'sie-session';
+const ROLE_KEY = 'sie-role';
 
 async function readError(response) {
   try {
@@ -14,6 +17,8 @@ async function readError(response) {
 
 export default function App() {
   const [auth, setAuth] = useState(() => sessionStorage.getItem(AUTH_KEY) || '');
+  const [role, setRole] = useState(() => sessionStorage.getItem(ROLE_KEY) || '');
+  const [page, setPage] = useState(() => sessionStorage.getItem(ROLE_KEY) === 'ALMACEN' ? 'inventario' : 'clientes');
   const [username, setUsername] = useState('ventas_demo');
   const [password, setPassword] = useState('');
   const [clients, setClients] = useState([]);
@@ -51,9 +56,11 @@ export default function App() {
       }
       setClients(await response.json());
     } catch (exception) {
-      if (exception.status === 401 || exception.status === 403) {
+      if (exception.status === 401) {
         sessionStorage.removeItem(AUTH_KEY);
+        sessionStorage.removeItem(ROLE_KEY);
         setAuth('');
+        setRole('');
       }
       setError(exception.message || 'No se pudo conectar con el servidor.');
     } finally {
@@ -62,10 +69,10 @@ export default function App() {
   }, [auth, search, includeInactive]);
 
   useEffect(() => {
-    if (!auth) return;
+    if (!auth || page !== 'clientes') return;
     const timer = window.setTimeout(() => loadClients(), 180);
     return () => window.clearTimeout(timer);
-  }, [auth, search, includeInactive, loadClients]);
+  }, [auth, page, search, includeInactive, loadClients]);
 
   const activeCount = useMemo(() => clients.filter((client) => client.activo).length, [clients]);
 
@@ -75,9 +82,15 @@ export default function App() {
     setError('');
     const token = `Basic ${btoa(`${username.trim()}:${password}`)}`;
     try {
-      const response = await fetch('/api/ventas/clientes', { headers: { Authorization: token } });
+      const response = await fetch('/api/sesion', { headers: { Authorization: token } });
       if (!response.ok) throw new Error(response.status === 401 ? 'Usuario o contraseña incorrectos.' : await readError(response));
+      const profile = await response.json();
+      const roles = profile.roles || [];
+      const activeRole = roles.includes('ROLE_ADMIN') ? 'ADMIN' : roles.includes('ROLE_ALMACEN') ? 'ALMACEN' : 'VENTAS';
+      sessionStorage.setItem(ROLE_KEY, activeRole);
       sessionStorage.setItem(AUTH_KEY, token);
+      setRole(activeRole);
+      setPage(activeRole === 'ALMACEN' ? 'inventario' : 'clientes');
       setAuth(token);
       setPassword('');
     } catch (exception) {
@@ -89,7 +102,9 @@ export default function App() {
 
   function signOut() {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(ROLE_KEY);
     setAuth('');
+    setRole('');
     setClients([]);
     setNotice('');
     setError('');
@@ -162,16 +177,16 @@ export default function App() {
       <main className="login-shell">
         <section className="login-card">
           <div className="brand-mark">D</div>
-          <p className="eyebrow">SISTEMA PERSONALIZADO · SPRINT 2</p>
+          <p className="eyebrow">SISTEMA PERSONALIZADO · SPRINT 3</p>
           <h1>Inicia sesión</h1>
-          <p className="muted">Acceso al módulo de clientes para el equipo de ventas.</p>
+          <p className="muted">Acceso según tu función de ventas o almacén.</p>
           <form onSubmit={signIn} className="login-form">
             <label>Usuario<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label>
             <label>Contraseña<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
             {error && <p className="alert error" role="alert">{error}</p>}
             <button className="primary-button" disabled={loginLoading}>{loginLoading ? 'Verificando…' : 'Entrar'}</button>
           </form>
-          <p className="login-hint">Usa las credenciales de ventas configuradas en el archivo local <code>.env</code>.</p>
+          <p className="login-hint">Demo ventas: <code>ventas_demo</code>. Demo almacén: <code>almacen_demo</code>. Contraseñas locales en <code>.env</code>.</p>
           <span className="connection-note">{apiStatus}</span>
         </section>
       </main>
@@ -183,12 +198,13 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark small-mark">D</span><span>Dermogestión<small>Sistema comercial</small></span></div>
         <p className="nav-label">ESPACIO DE TRABAJO</p>
-        <div className="nav-item selected"><span>01</span>Clientes</div>
-        <div className="nav-item disabled"><span>02</span>Pedidos <small>Próximo sprint</small></div>
-        <div className="nav-item disabled"><span>03</span>Inventario</div>
-        <div className="sidebar-note"><b>CRM de clientes</b><p>Registra y consulta la información comercial desde un solo lugar.</p></div>
+        <button className={`nav-item ${page === 'clientes' ? 'selected' : ''}`} onClick={() => setPage('clientes')}><span>01</span>Clientes</button>
+        <button className={`nav-item ${page === 'pedidos' ? 'selected' : ''}`} onClick={() => setPage('pedidos')}><span>02</span>Pedidos</button>
+        <button className={`nav-item ${page === 'inventario' ? 'selected' : ''}`} onClick={() => setPage('inventario')}><span>03</span>Inventario</button>
+        <div className="sidebar-note"><b>Sistema comercial</b><p>Clientes, pedidos y existencias conectados en un solo flujo.</p></div>
       </aside>
 
+      {page === 'clientes' ? <>
       <section className="workspace">
         <header className="topbar">
           <div><p className="eyebrow">SISTEMA PERSONALIZADO INTEGRADO</p><h1>Gestión de clientes</h1><p className="muted">Administra los contactos y datos de tus clientes.</p></div>
@@ -246,6 +262,11 @@ export default function App() {
           </form>
         </section>
       </div>}
+      </> : <section className="workspace feature-workspace">
+        <div className="feature-role">Sesión: {role === 'ADMIN' ? 'Administrador' : role === 'ALMACEN' ? 'Almacén' : 'Ventas'}</div>
+        {page === 'pedidos' ? <OrdersPage auth={auth} /> : <InventoryPage auth={auth} />}
+        <button className="quiet-button feature-signout" onClick={signOut}>Cerrar sesión</button>
+      </section>}
     </main>
   );
 }

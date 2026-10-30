@@ -21,7 +21,7 @@ En el instalador de Windows, elige **Per-user installation** y deja **WSL 2** se
 4. Para revisar los servicios, ejecuta `docker compose ps`; para ver sus registros, `docker compose logs -f`.
 5. Para detenerlos sin borrar la base de datos, ejecuta `docker compose down`.
 
-MySQL también queda disponible para Workbench en `127.0.0.1:3307`, base `gestion_comercial`, usando las credenciales de `.env`. La base de datos se guarda en un volumen Docker local. Ese volumen no se comparte mediante Git; cada PC tendrá su propia copia de los datos.
+MySQL también queda disponible para Workbench en `127.0.0.1:3308`, base `gestion_comercial`, usando las credenciales de `.env`. La base de datos se guarda en un volumen Docker local. Ese volumen no se comparte mediante Git; cada PC tendrá su propia copia de los datos.
 
 El archivo `database/schema.sql` se carga automáticamente la primera vez que se crea el volumen. Si posteriormente cambias el esquema, aplica la migración o importa el SQL manualmente en Workbench. Borrar el volumen también elimina los datos guardados.
 
@@ -46,3 +46,8 @@ En la demostración local, ingresa con `ventas_demo` y la contraseña `ventas_lo
 
 ## Alcance inicial
 CRM básico, pedidos, inventario, movimientos y reportes. Los requisitos se validarán con la empresa. Integraciones automáticas con WhatsApp, Facebook, pagos y facturación quedan fuera hasta confirmar APIs, permisos y viabilidad.
+
+## Sprint 3: pedidos e inventario
+Ventas puede registrar pedidos vinculados con clientes activos y productos del catálogo. Al confirmar un pedido, el sistema valida disponibilidad y reserva el stock dentro de una transacción. Almacén registra productos y entradas o ajustes, inicia la preparación y despacha pedidos; el despacho descuenta las unidades del inventario. Los movimientos conservan el motivo y la referencia al pedido.
+
+Para la demostración, entra como `almacen_demo` / `almacen_local_demo`, registra un producto con stock inicial y cierra sesión. Luego entra como `ventas_demo` / `ventas_local_demo`, registra un cliente si aún no existe y crea un pedido. Finalmente vuelve a entrar como almacén para preparar y despachar. El inventario muestra stock físico, reservado y disponible.
