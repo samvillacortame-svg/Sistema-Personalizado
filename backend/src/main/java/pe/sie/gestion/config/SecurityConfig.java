@@ -3,9 +3,11 @@ package pe.sie.gestion.config;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,13 +28,19 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/estado").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/ventas/**").hasAnyRole("ADMIN", "VENTAS")
                         .requestMatchers("/api/almacen/**").hasAnyRole("ADMIN", "ALMACEN")
                         .requestMatchers("/api/reportes/**").hasAnyRole("ADMIN", "VENTAS", "ALMACEN")
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults())
+                .httpBasic(basic -> basic.authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.setCharacterEncoding("UTF-8");
+                    response.getWriter().write("{\"message\":\"Autenticación requerida o credenciales inválidas.\"}");
+                }))
                 .build();
     }
 

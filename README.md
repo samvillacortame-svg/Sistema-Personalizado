@@ -26,9 +26,11 @@ MySQL también queda disponible para Workbench en `127.0.0.1:3308`, base `gestio
 El archivo `database/schema.sql` crea el esquema inicial la primera vez que se crea el volumen. El API aplica automáticamente las migraciones pendientes desde `backend/src/main/resources/db/migration`, tanto en bases nuevas como en volúmenes existentes. No borres el volumen para actualizar el esquema: los datos se conservan. Borrar el volumen sí elimina toda la base local.
 
 ## Publicar el sistema completo en Railway
-Railway usa un servicio por cada componente del archivo Compose. Crea un proyecto, agrega un servicio MySQL y crea dos servicios desde este repositorio, llamándolos exactamente `api` y `frontend`: API con directorio raíz `backend` y frontend con directorio raíz `frontend`. Mantén MySQL como servicio privado; solo el frontend necesita un dominio público.
+Railway no ejecuta el archivo Compose directamente. Para la exposición, usa dos servicios: una base de datos MySQL y la aplicación web. El `Dockerfile` de la raíz compila React y lo incluye dentro de Spring Boot, por lo que basta un dominio público para la web y el API.
 
-En el servicio MySQL, conserva el nombre `MySQL`. En el servicio `api`, configura estas variables con referencias de Railway y credenciales nuevas para la demo:
+1. Crea un proyecto en Railway y agrega una base de datos MySQL llamada `MySQL`.
+2. Desde el repositorio `samvillacortame-svg/Sistema-Personalizado`, agrega un servicio llamado `app` usando la rama `main` y el `Dockerfile` de la raíz del repositorio.
+3. En `app`, configura estas variables con referencias de Railway y credenciales nuevas para la demo:
 
 ```text
 SPRING_DATASOURCE_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}?serverTimezone=UTC
@@ -42,14 +44,7 @@ APP_ADMIN_USERNAME=admin_demo
 APP_ADMIN_PASSWORD=<definir una contraseña solo para el despliegue>
 ```
 
-En el servicio frontend, configura:
-
-```text
-API_UPSTREAM=${{api.RAILWAY_PRIVATE_DOMAIN}}:8080
-NGINX_ENVSUBST_FILTER=^API_UPSTREAM$
-```
-
-Genera un dominio público para el frontend con puerto de destino `80`. El backend sigue privado y la base de datos queda conectada por red privada. Las migraciones V1 y V2 crean el esquema inicial y aplican los cambios automáticamente en una base nueva. Nunca subas las contraseñas reales al repositorio.
+4. En `app`, genera un dominio público con puerto de destino `8080`. La base de datos queda privada. Las migraciones V1 y V2 crean el esquema inicial y aplican los cambios automáticamente en una base nueva. Nunca subas las contraseñas reales al repositorio.
 
 ## Ejecutar sin contenedores
 1. En MySQL Workbench, abre y ejecuta `database/schema.sql` para crear la base y las tablas iniciales.
