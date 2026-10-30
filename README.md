@@ -27,7 +27,7 @@ El archivo `database/schema.sql` se carga automáticamente la primera vez que se
 
 ## Ejecutar sin contenedores
 1. En MySQL Workbench, abre y ejecuta `database/schema.sql` para crear la base y las tablas iniciales.
-2. En PowerShell, entra a `backend` y ejecuta `Copy-Item .env.example .env`.
+2. En PowerShell, dentro de `backend`, ejecuta `Copy-Item .env.example .env`.
 3. Edita `backend/.env` con la cuenta MySQL local. La URL de conexión es `jdbc:mysql://localhost:3306/gestion_comercial`.
 4. En una terminal, dentro de `backend`, ejecuta `./run-local.ps1`.
 5. En otra terminal, dentro de `frontend`, ejecuta `pnpm install` y luego `pnpm dev`.
@@ -40,7 +40,9 @@ La API usa HTTP Basic en desarrollo. Configura usuarios en el archivo local:
 - APP_VENTAS_USERNAME / APP_VENTAS_PASSWORD
 - APP_ALMACEN_USERNAME / APP_ALMACEN_PASSWORD
 
-Las rutas /api/admin/**, /api/ventas/** y /api/almacen/** exigen el rol correspondiente. Sin usuarios configurados, el endpoint de estado permanece público y las demás rutas quedan protegidas. En Docker Compose, las variables se definen en el `.env` de la raíz.
+Las rutas /api/admin/**, /api/ventas/** y /api/almacen/** exigen el rol correspondiente. En Docker Compose, las variables se definen en el `.env` de la raíz. El `.env.example` incluye credenciales ficticias solo para la demostración académica; reemplázalas fuera del entorno local.
+
+En la demostración local, ingresa con `ventas_demo` y la contraseña `ventas_local_demo`. Las credenciales son ficticias para el entorno académico; los cambios en Docker requieren recrear la API con `docker compose up -d --force-recreate api`.
 
 ## Alcance inicial
 CRM básico, pedidos, inventario, movimientos y reportes. Los requisitos se validarán con la empresa. Integraciones automáticas con WhatsApp, Facebook, pagos y facturación quedan fuera hasta confirmar APIs, permisos y viabilidad.
