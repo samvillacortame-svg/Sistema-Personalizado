@@ -25,6 +25,32 @@ MySQL también queda disponible para Workbench en `127.0.0.1:3308`, base `gestio
 
 El archivo `database/schema.sql` crea el esquema inicial la primera vez que se crea el volumen. El API aplica automáticamente las migraciones pendientes desde `backend/src/main/resources/db/migration`, tanto en bases nuevas como en volúmenes existentes. No borres el volumen para actualizar el esquema: los datos se conservan. Borrar el volumen sí elimina toda la base local.
 
+## Publicar el sistema completo en Railway
+Railway usa un servicio por cada componente del archivo Compose. Crea un proyecto, agrega un servicio MySQL y crea dos servicios desde este repositorio, llamándolos exactamente `api` y `frontend`: API con directorio raíz `backend` y frontend con directorio raíz `frontend`. Mantén MySQL como servicio privado; solo el frontend necesita un dominio público.
+
+En el servicio MySQL, conserva el nombre `MySQL`. En el servicio `api`, configura estas variables con referencias de Railway y credenciales nuevas para la demo:
+
+```text
+SPRING_DATASOURCE_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}?serverTimezone=UTC
+SPRING_DATASOURCE_USERNAME=${{MySQL.MYSQLUSER}}
+SPRING_DATASOURCE_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+APP_VENTAS_USERNAME=ventas_demo
+APP_VENTAS_PASSWORD=<definir una contraseña solo para el despliegue>
+APP_ALMACEN_USERNAME=almacen_demo
+APP_ALMACEN_PASSWORD=<definir una contraseña solo para el despliegue>
+APP_ADMIN_USERNAME=admin_demo
+APP_ADMIN_PASSWORD=<definir una contraseña solo para el despliegue>
+```
+
+En el servicio frontend, configura:
+
+```text
+API_UPSTREAM=${{api.RAILWAY_PRIVATE_DOMAIN}}:8080
+NGINX_ENVSUBST_FILTER=^API_UPSTREAM$
+```
+
+Genera un dominio público para el frontend con puerto de destino `80`. El backend sigue privado y la base de datos queda conectada por red privada. Las migraciones V1 y V2 crean el esquema inicial y aplican los cambios automáticamente en una base nueva. Nunca subas las contraseñas reales al repositorio.
+
 ## Ejecutar sin contenedores
 1. En MySQL Workbench, abre y ejecuta `database/schema.sql` para crear la base y las tablas iniciales.
 2. En PowerShell, dentro de `backend`, ejecuta `Copy-Item .env.example .env`.
