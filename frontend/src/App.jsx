@@ -8,12 +8,30 @@ const AUTH_KEY = 'sie-session';
 const ROLE_KEY = 'sie-role';
 
 async function readError(response) {
+  let raw = '';
   try {
-    const body = await response.json();
-    return body.detail || body.message || body.error || 'No se pudo completar la operación.';
-  } catch {
-    return 'No se pudo completar la operación.';
+    raw = await response.text();
+  } catch { /* La respuesta puede no incluir un cuerpo legible. */ }
+
+  if (raw) {
+    try {
+      const body = JSON.parse(raw);
+      const fieldMessages = body.fieldErrors && Object.values(body.fieldErrors).filter(Boolean);
+      const message = body.message || body.detail || body.title || (fieldMessages?.length ? fieldMessages.join('. ') : '');
+      if (message) return message;
+      if (body.error && response.status !== 409 && response.status < 500) return body.error;
+    } catch {
+      if (!raw.trimStart().startsWith('<')) return raw;
+    }
   }
+
+  if (response.status === 400) return 'Revisa los datos ingresados e inténtalo de nuevo.';
+  if (response.status === 401) return 'Tu sesión no está autorizada. Cierra sesión e inicia nuevamente.';
+  if (response.status === 403) return 'No tienes permisos para realizar esta operación.';
+  if (response.status === 404) return 'No se encontró el registro solicitado.';
+  if (response.status === 409) return 'El documento ya está registrado. Verifica el dato o consulta el cliente existente.';
+  if (response.status >= 500) return 'El servidor tuvo un problema al guardar. Inténtalo nuevamente.';
+  return `No se pudo completar la operación (HTTP ${response.status}).`;
 }
 
 export default function App() {
