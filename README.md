@@ -51,3 +51,6 @@ CRM básico, pedidos, inventario, movimientos y reportes. Los requisitos se vali
 Ventas puede registrar pedidos vinculados con clientes activos y productos del catálogo. Al confirmar un pedido, el sistema valida disponibilidad y reserva el stock dentro de una transacción. Almacén registra productos y entradas o ajustes, inicia la preparación y despacha pedidos; el despacho descuenta las unidades del inventario. Los movimientos conservan el motivo y la referencia al pedido.
 
 Para la demostración, entra como `almacen_demo` / `almacen_local_demo`, registra un producto con stock inicial y cierra sesión. Luego entra como `ventas_demo` / `ventas_local_demo`, registra un cliente si aún no existe y crea un pedido. Finalmente vuelve a entrar como almacén para preparar y despachar. El inventario muestra stock físico, reservado y disponible.
+
+## Sprint 4: reportes de gestión
+El panel de reportes permite filtrar por fechas y consultar ventas de pedidos despachados, pedidos por estado, ticket promedio, ventas por canal y día, productos más vendidos y alertas de stock bajo. Los roles de ventas y almacén pueden consultar el panel.
